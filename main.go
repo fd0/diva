@@ -59,12 +59,31 @@ func windowTitle(win string) (string, error) {
 
 // activateWindow switchet to the window and sends the key sequence to it.
 func activateWindow(win string, keys []string) error {
+	// disable keyboard repeat
+	cmd := exec.Command("xset", "r", "off")
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	err := cmd.Run()
+	if err != nil {
+		return err
+	}
+
+	// switch to the previous window and paste the buffer
 	args := []string{"windowactivate", "--sync", win}
 	for _, key := range keys {
 		args = append(args, "key", "--delay", "20", "--clearmodifiers", key)
 	}
 	fmt.Printf("running xdotool %v\n", args)
-	cmd := exec.Command("xdotool", args...)
+	cmd = exec.Command("xdotool", args...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
+
+	// reenable keyboard repeat
+	cmd = exec.Command("xset", "r", "on")
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	return cmd.Run()
