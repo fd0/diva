@@ -238,7 +238,7 @@ func main() {
 		return
 	}
 
-	err = activateWindow(win, []string{"ctrl+v"})
+	err = activateWindow(win, []string{"ctrl+v", "Down"})
 	if err != nil {
 		die("switching back to window %v failed: %v", win, err)
 	}
