@@ -59,8 +59,11 @@ func windowTitle(win string) (string, error) {
 
 // activateWindow switchet to the window and sends the key sequence to it.
 func activateWindow(win string, keys []string) error {
-	args := []string{"windowactivate", "--sync", win, "key", "--clearmodifiers"}
-	args = append(args, keys...)
+	args := []string{"windowactivate", "--sync", win}
+	for _, key := range keys {
+		args = append(args, "key", "--delay", "20", "--clearmodifiers", key)
+	}
+	fmt.Printf("running xdotool %v\n", args)
 	cmd := exec.Command("xdotool", args...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
@@ -84,13 +87,13 @@ func setClipboard(buf []byte) error {
 }
 
 // editBuffer runs gvim on a temp file and returns the new buffer
-func editBuffer(buf []byte) ([]byte, error) {
+func editBuffer(fileExt string, buf []byte) ([]byte, error) {
 	dir, err := ioutil.TempDir("", "diva-edit-")
 	if err != nil {
 		return nil, err
 	}
 
-	tempfile := filepath.Join(dir, "text")
+	tempfile := filepath.Join(dir, "text"+fileExt)
 	err = ioutil.WriteFile(tempfile, buf, 0600)
 	if err != nil {
 		return nil, err
@@ -124,13 +127,13 @@ func editBuffer(buf []byte) ([]byte, error) {
 }
 
 // editClipboard runs an editor on the clipboard contents.
-func editClipboard() error {
+func editClipboard(fileExt string) error {
 	buf, err := getClipboard()
 	if err != nil {
 		return err
 	}
 
-	buf, err = editBuffer(buf)
+	buf, err = editBuffer(fileExt, buf)
 	if err != nil {
 		return err
 	}
@@ -138,38 +141,86 @@ func editClipboard() error {
 	return setClipboard(buf)
 }
 
+// really simple pattern matching to select the extension for the text file
+// based on window title and executable.
+var pattern = []struct {
+	cmd   string
+	title string
+	ext   string
+}{
+	{
+		cmd: "chromium",
+		ext: ".md",
+	},
+	{
+		cmd: "firefox",
+		ext: ".md",
+	},
+}
+
+func findExtension(cmd, title string) string {
+	for _, pat := range pattern {
+		if pat.cmd != "" && !strings.Contains(cmd, pat.cmd) {
+			continue
+		}
+
+		if pat.title != "" && !strings.Contains(title, pat.title) {
+			continue
+		}
+
+		return pat.ext
+	}
+
+	// default
+	return ".txt"
+}
+
+// die prints the message to stderr and exits.
+func die(msg string, args ...interface{}) {
+	if !strings.HasSuffix(msg, "\n") {
+		msg += "\n"
+	}
+	fmt.Fprintf(os.Stderr, msg, args...)
+	os.Exit(1)
+}
+
 func main() {
 	win, err := currentWindow()
 	if err != nil {
-		panic(err)
+		die("unable to find current window")
 	}
 
 	pid, err := windowPID(win)
 	if err != nil {
-		panic(err)
+		die("unable to find PID for window %v", win)
 	}
 
 	title, err := windowTitle(win)
 	if err != nil {
-		panic(err)
+		die("unable to find title for window %v", win)
 	}
 
 	proc, err := ps.FindProcess(pid)
 	if err != nil {
-		panic(err)
+		die("unable to find process for PID %v", pid)
 	}
 
 	cmd := proc.Executable()
 
 	fmt.Printf("win: %v, cmd %v: %q\n", win, cmd, title)
 
-	err = editClipboard()
+	err = editClipboard(findExtension(proc.Executable(), title))
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "editing clipboard failed: %v\nswitching back to window %v", err, win)
+		err = activateWindow(win, nil)
+		if err != nil {
+			die("switching back to window %v failed: %v", win, err)
+		}
+		return
 	}
 
 	err = activateWindow(win, []string{"ctrl+v"})
 	if err != nil {
-		panic(err)
+		die("switching back to window %v failed: %v", win, err)
 	}
 }
