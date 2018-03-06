@@ -228,6 +228,11 @@ func main() {
 
 	fmt.Printf("win: %v, cmd %v: %q\n", win, cmd, title)
 
+	err = activateWindow(win, []string{"ctrl+a", "ctrl+c"})
+	if err != nil {
+		die("copying text failed: %v", err)
+	}
+
 	err = editClipboard(findExtension(proc.Executable(), title))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "editing clipboard failed: %v\nswitching back to window %v", err, win)
