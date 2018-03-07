@@ -57,7 +57,39 @@ func windowTitle(win string) (string, error) {
 	return strings.TrimSpace(string(buf)), nil
 }
 
-// activateWindow switchet to the window and sends the key sequence to it.
+// sendKeys sends the key sequence to the window.
+func sendKeys(win string, keys []string) error {
+	// disable keyboard repeat
+	cmd := exec.Command("xset", "r", "off")
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	err := cmd.Run()
+	if err != nil {
+		return err
+	}
+
+	// switch to the previous window and paste the buffer
+	args := []string{"key", "--window", win}
+	for _, key := range keys {
+		args = append(args, "key", key)
+	}
+	fmt.Printf("running xdotool %v\n", args)
+	cmd = exec.Command("xdotool", args...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
+
+	// reenable keyboard repeat
+	cmd = exec.Command("xset", "r", "on")
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	return cmd.Run()
+}
+
+// activateWindow switches to the window and sends the key sequence to it.
 func activateWindow(win string, keys []string) error {
 	// disable keyboard repeat
 	cmd := exec.Command("xset", "r", "off")
@@ -71,7 +103,7 @@ func activateWindow(win string, keys []string) error {
 	// switch to the previous window and paste the buffer
 	args := []string{"windowactivate", "--sync", win}
 	for _, key := range keys {
-		args = append(args, "key", "--delay", "20", "--clearmodifiers", key)
+		args = append(args, "key", key)
 	}
 	fmt.Printf("running xdotool %v\n", args)
 	cmd = exec.Command("xdotool", args...)
@@ -228,7 +260,7 @@ func main() {
 
 	fmt.Printf("win: %v, cmd %v: %q\n", win, cmd, title)
 
-	err = activateWindow(win, []string{"ctrl+a", "ctrl+c"})
+	err = sendKeys(win, []string{"ctrl+a", "ctrl+c"})
 	if err != nil {
 		die("copying text failed: %v", err)
 	}
@@ -243,7 +275,7 @@ func main() {
 		return
 	}
 
-	err = activateWindow(win, []string{"ctrl+v", "Down"})
+	err = activateWindow(win, []string{"ctrl+v"})
 	if err != nil {
 		die("switching back to window %v failed: %v", win, err)
 	}
