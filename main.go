@@ -181,7 +181,8 @@ func editBuffer(fileExt string, buf []byte) ([]byte, error) {
 func editClipboard(fileExt string) error {
 	buf, err := getClipboard()
 	if err != nil {
-		return err
+		fmt.Fprintf(os.Stderr, "unable to get clipboard, using empty buffer: %v\n", err)
+		buf = []byte("")
 	}
 
 	buf, err = editBuffer(fileExt, buf)
