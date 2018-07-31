@@ -69,9 +69,9 @@ func sendKeys(win string, keys []string) error {
 	}
 
 	// switch to the previous window and paste the buffer
-	args := []string{"key", "--window", win}
+	args := []string{"key", "--clearmodifiers", "--window", win}
 	for _, key := range keys {
-		args = append(args, "key", key)
+		args = append(args, key)
 	}
 	fmt.Printf("running xdotool %v\n", args)
 	cmd = exec.Command("xdotool", args...)
@@ -102,8 +102,11 @@ func activateWindow(win string, keys []string) error {
 
 	// switch to the previous window and paste the buffer
 	args := []string{"windowactivate", "--sync", win}
-	for _, key := range keys {
-		args = append(args, "key", key)
+	if len(keys) > 0 {
+		args = append(args, "key", "--clearmodifiers")
+		for _, key := range keys {
+			args = append(args, "key", key)
+		}
 	}
 	fmt.Printf("running xdotool %v\n", args)
 	cmd = exec.Command("xdotool", args...)
@@ -150,7 +153,7 @@ func editBuffer(fileExt string, buf []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	cmd := exec.Command("gvim", "-f", tempfile)
+	cmd := exec.Command("gvim", "-f", "-c", ":Goyo", "-c", ":PencilSoft", tempfile)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 
