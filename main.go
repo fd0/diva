@@ -261,7 +261,7 @@ func main() {
 		die("switching back to window %v failed: %v", win, err)
 	}
 
-	err = sendKeys(win, 500*time.Millisecond, []string{"ctrl+a", "ctrl+v"})
+	err = sendKeys(win, 2*time.Second, []string{"ctrl+a", "ctrl+v"})
 	if err != nil {
 		die("pasting buffer into window %v failed: %v", win, err)
 	}
