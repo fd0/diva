@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	ps "github.com/mitchellh/go-ps"
 )
@@ -57,8 +58,8 @@ func windowTitle(win string) (string, error) {
 	return strings.TrimSpace(string(buf)), nil
 }
 
-// sendKeys sends the key sequence to the window.
-func sendKeys(win string, keys []string) error {
+// sendKeys sends the key sequence to the window, with delay in between the keys.
+func sendKeys(win string, delay time.Duration, keys []string) error {
 	// disable keyboard repeat
 	cmd := exec.Command("xset", "r", "off")
 	cmd.Stderr = os.Stderr
@@ -68,18 +69,18 @@ func sendKeys(win string, keys []string) error {
 		return err
 	}
 
-	// switch to the previous window and paste the buffer
-	args := []string{"key", "--clearmodifiers", "--window", win}
 	for _, key := range keys {
-		args = append(args, key)
-	}
-	fmt.Printf("running xdotool %v\n", args)
-	cmd = exec.Command("xdotool", args...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	err = cmd.Run()
-	if err != nil {
-		return err
+		args := []string{"key", "--clearmodifiers", "--window", win, key}
+		fmt.Printf("running xdotool %v\n", args)
+		cmd = exec.Command("xdotool", args...)
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+		err = cmd.Run()
+		if err != nil {
+			return err
+		}
+
+		time.Sleep(delay)
 	}
 
 	// reenable keyboard repeat
@@ -90,35 +91,11 @@ func sendKeys(win string, keys []string) error {
 }
 
 // activateWindow switches to the window and sends the key sequence to it.
-func activateWindow(win string, keys []string) error {
-	// disable keyboard repeat
-	cmd := exec.Command("xset", "r", "off")
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	err := cmd.Run()
-	if err != nil {
-		return err
-	}
-
+func activateWindow(win string) error {
 	// switch to the previous window and paste the buffer
 	args := []string{"windowactivate", "--sync", win}
-	if len(keys) > 0 {
-		args = append(args, "key", "--clearmodifiers")
-		for _, key := range keys {
-			args = append(args, "key", key)
-		}
-	}
 	fmt.Printf("running xdotool %v\n", args)
-	cmd = exec.Command("xdotool", args...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-	err = cmd.Run()
-	if err != nil {
-		return err
-	}
-
-	// reenable keyboard repeat
-	cmd = exec.Command("xset", "r", "on")
+	cmd := exec.Command("xdotool", args...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	return cmd.Run()
@@ -264,7 +241,7 @@ func main() {
 
 	fmt.Printf("win: %v, cmd %v: %q\n", win, cmd, title)
 
-	err = sendKeys(win, []string{"ctrl+a", "ctrl+c"})
+	err = sendKeys(win, 0, []string{"ctrl+a", "ctrl+c"})
 	if err != nil {
 		die("copying text failed: %v", err)
 	}
@@ -272,15 +249,20 @@ func main() {
 	err = editClipboard(findExtension(proc.Executable(), title))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "editing clipboard failed: %v\nswitching back to window %v", err, win)
-		err = activateWindow(win, nil)
+		err = activateWindow(win)
 		if err != nil {
 			die("switching back to window %v failed: %v", win, err)
 		}
 		return
 	}
 
-	err = activateWindow(win, []string{"ctrl+v"})
+	err = activateWindow(win)
 	if err != nil {
 		die("switching back to window %v failed: %v", win, err)
+	}
+
+	err = sendKeys(win, 500*time.Millisecond, []string{"ctrl+a", "ctrl+v"})
+	if err != nil {
+		die("pasting buffer into window %v failed: %v", win, err)
 	}
 }
