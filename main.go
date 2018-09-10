@@ -181,6 +181,10 @@ var pattern = []struct {
 	ext   string
 }{
 	{
+		title: "SugarCRM",
+		ext:   ".sugar",
+	},
+	{
 		cmd: "chromium",
 		ext: ".md",
 	},
@@ -248,7 +252,7 @@ func main() {
 
 	err = editClipboard(findExtension(proc.Executable(), title))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "editing clipboard failed: %v\nswitching back to window %v", err, win)
+		fmt.Fprintf(os.Stderr, "editing clipboard failed: %v\nswitching back to window %v\n", err, win)
 		err = activateWindow(win)
 		if err != nil {
 			die("switching back to window %v failed: %v", win, err)
